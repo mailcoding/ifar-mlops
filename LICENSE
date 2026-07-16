@@ -1,0 +1,26 @@
+IFAR CancerSein AI — ifar-mlops
+Copyright (c) 2026 Mailcoding / IFAR CancerSein AI. Tous droits réservés.
+
+PROPRIÉTAIRE ET CONFIDENTIEL — All rights reserved.
+
+Ce dépôt et son contenu (code, configurations, documents, model cards, manifestes
+et artefacts modèles dérivés) sont la propriété exclusive de Mailcoding / IFAR
+CancerSein AI. Ils sont fournis à des fins internes de recherche et de développement
+d'un dispositif médical logiciel (SaMD). Ce n'est PAS un logiciel libre.
+
+Sans autorisation écrite préalable du titulaire des droits, sont interdits :
+  - la copie, la distribution ou la publication, en tout ou en partie ;
+  - la modification ou la création d'œuvres dérivées destinées à diffusion ;
+  - tout usage commercial par un tiers.
+
+Contraintes propres au domaine :
+  - Aucune donnée de santé (PHI) ni donnée brute ne doit être versionnée dans ce
+    dépôt (voir GOVERNANCE.md) — uniquement des pointeurs et manifestes.
+  - Les modèles produits ne sont PAS des dispositifs médicaux approuvés tant que
+    la porte de validation clinique (cf. SaMD_CADRE_REGLEMENTAIRE.md du produit)
+    n'est pas franchie ; ils ne doivent pas être utilisés pour un diagnostic
+    autonome.
+
+CE CONTENU EST FOURNI « EN L'ÉTAT », SANS GARANTIE D'AUCUNE SORTE, EXPRESSE OU
+IMPLICITE. LE TITULAIRE DES DROITS NE SAURAIT ÊTRE TENU RESPONSABLE DE TOUT
+DOMMAGE DÉCOULANT DE SON USAGE.

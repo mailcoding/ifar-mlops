@@ -1,0 +1,20 @@
+# Config — histologie (grade de Nottingham) — À COMPLÉTER
+# Le produit n'a qu'un placeholder heuristique : cible prioritaire d'un vrai modèle.
+
+data:
+  name: ifar-histo
+  train_manifest: /data/ifar/histo/train.csv   # colonnes: path,tubule,pleomorphism,mitosis (1..3)
+  val_manifest:   /data/ifar/histo/val.csv
+
+model:
+  backbone: efficientnet_b0    # ou vit_base_patch16_224 ; 3 têtes de scores SBR
+  heads: [tubule, pleomorphism, mitosis]
+
+train:
+  epochs: 40
+  batch_size: 16
+  lr: 0.0003
+
+export:
+  out_dir: artifacts/histo
+  version: v0.1.0

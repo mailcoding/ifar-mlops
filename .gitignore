@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Artefacts & poids (versionnés sur HF Hub, pas dans git)
+artifacts/
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Runs d'entraînement
+runs/
+wandb/
+mlruns/
+lightning_logs/
+
+# Secrets / env
+.env

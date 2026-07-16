@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ifar-mlops"
+version = "0.1.0"
+description = "Entraînement, évaluation et versioning des modèles IA IFAR (dépôt séparé)."
+requires-python = ">=3.10"
+# Coeur léger (métriques, manifeste, registre). L'entraînement est en extra [train].
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "huggingface_hub>=0.23",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "timm>=0.9",
+    "ultralytics>=8.2",
+    "pillow>=10.0",
+    "scikit-learn>=1.3",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120

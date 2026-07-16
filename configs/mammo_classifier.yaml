@@ -1,0 +1,22 @@
+# Config — classifieur mammo bénin/malin (EfficientNetB0)
+# Les chemins de données pointent vers des manifestes CSV LOCAUX (non versionnés).
+
+data:
+  name: cbis-ddsm
+  train_manifest: /data/ifar/cbis/train.csv    # colonnes: path,label (BENIGN/MALIGNANT)
+  val_manifest:   /data/ifar/cbis/val.csv
+
+train:
+  epochs: 30
+  batch_size: 32
+  lr: 0.0003
+  weight_decay: 0.0001
+  num_workers: 4
+  class_weights: null        # ex. [1.0, 2.0] si déséquilibre bénin/malin
+
+eval:
+  threshold: 0.50            # abaisser (ex. 0.40) pour privilégier la sensibilité
+
+export:
+  out_dir: artifacts/mammo-clf
+  version: v0.1.0

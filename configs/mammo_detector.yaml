@@ -1,0 +1,16 @@
+# Config — détecteur/segmenteur de lésions (YOLOv8-seg, Ultralytics)
+
+model:
+  base: yolov8n-seg.pt        # segmentation (masques). yolov8n.pt = détection seule (mode dégradé)
+
+data:
+  yaml: /data/ifar/yolo/data.yaml   # data.yaml Ultralytics (train/val + noms de classes)
+
+train:
+  imgsz: 640
+  epochs: 100
+  batch: 16
+
+export:
+  out_dir: artifacts/mammo-det
+  version: v0.1.0

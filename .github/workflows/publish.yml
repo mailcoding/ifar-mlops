@@ -1,0 +1,66 @@
+# Publication MANUELLE d'un artefact modèle vers le Hugging Face Hub (repo model privé).
+#
+# Déclenché à la main (workflow_dispatch). Le vrai entraînement se fait hors CI (Colab/GPU) : ce
+# workflow sert à PUBLIER un dossier d'artefact (poids + manifest.json + MODEL_CARD.md) déjà produit,
+# une fois qu'il est présent dans le workspace (ex. téléchargé depuis un run, ou d'un artefact GitHub).
+#
+# Pré-requis : secret `HF_TOKEN` (WRITE) dans les secrets Actions du dépôt ifar-mlops.
+name: Publish artifact (HF Hub)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_id:
+        description: "Repo HF model cible (ex. Mailcoding/ifar-mammo-classifier)"
+        required: true
+      version:
+        description: "Tag de version sémantique (ex. v0.1.0)"
+        required: true
+      artifacts_dir:
+        description: "Dossier local de l'artefact (poids + manifest.json + MODEL_CARD.md)"
+        required: true
+        default: "artifacts/mammo-clf"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer le cœur (huggingface_hub)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Vérifier la présence de l'artefact
+        run: |
+          DIR="${{ github.event.inputs.artifacts_dir }}"
+          if [ ! -d "$DIR" ] || [ -z "$(ls -A "$DIR" 2>/dev/null)" ]; then
+            echo "::error::Dossier d'artefact '$DIR' absent ou vide. Les poids ne sont pas versionnés"
+            echo "::error::dans git : place-les dans '$DIR' (via un run d'entraînement / un artefact"
+            echo "::error::téléchargé) avant de lancer cette publication."
+            exit 1
+          fi
+          ls -la "$DIR"
+
+      - name: Publier + taguer sur HF Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ARTIFACTS_DIR: ${{ github.event.inputs.artifacts_dir }}
+          REPO_ID: ${{ github.event.inputs.repo_id }}
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          python - <<'PY'
+          import os
+          from mlops.registry import publish_artifact
+          url = publish_artifact(
+              local_dir=os.environ["ARTIFACTS_DIR"],
+              repo_id=os.environ["REPO_ID"],
+              version=os.environ["VERSION"],
+          )
+          print(f"Publié : {url} (tag {os.environ['VERSION']})")
+          PY

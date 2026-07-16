@@ -1,0 +1,7 @@
+# Aucune donnée brute / PHI ne doit être versionnée.
+# Seuls les pointeurs/manifestes explicitement ajoutés (pointers/) sont suivis.
+*
+!.gitignore
+!README.md
+!pointers/
+!pointers/**
