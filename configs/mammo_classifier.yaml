@@ -1,5 +1,6 @@
 # Config — classifieur mammo bénin/malin (EfficientNetB0)
-# Les chemins de données pointent vers des manifestes CSV LOCAUX (non versionnés).
+# Les chemins de données pointent vers des manifestes CSV LOCAUX (non versionnés),
+# générés par `python -m mlops.datasets.build_cbis_manifest` (split par patient stratifié).
 
 data:
   name: cbis-ddsm
@@ -7,16 +8,22 @@ data:
   val_manifest:   /data/ifar/cbis/val.csv
 
 train:
-  epochs: 30
+  epochs: 40                 # transfert learning : converge en général < 40 (early stopping actif)
   batch_size: 32
   lr: 0.0003
   weight_decay: 0.0001
   num_workers: 4
-  class_weights: null        # ex. [1.0, 2.0] si déséquilibre bénin/malin
+  scheduler: cosine          # cosine | none — recuit du LR sur les epochs
+  patience: 8                # early stopping : nb d'epochs sans gain d'AUC val avant arrêt
+  # Déséquilibre bénin/malin : REPORTER ici les class_weights [bénin, malin] suggérés en fin de
+  # build_cbis_manifest (poids inverse-fréquence). Ex. : [1.0, 1.6]. null = pas de pondération.
+  class_weights: null
 
 eval:
-  threshold: 0.50            # abaisser (ex. 0.40) pour privilégier la sensibilité
+  threshold: 0.50            # seuil d'export/rapport par défaut
+  sensitivity_target: 0.90   # rapporte, à chaque epoch, le seuil atteignant cette sensibilité + la spéc.
 
+# Cibles de fiabilité (porte de validation) : AUC >= 0.85, sensibilité >= 0.90, spécificité >= 0.75.
 export:
   out_dir: artifacts/mammo-clf
   version: v0.1.0
