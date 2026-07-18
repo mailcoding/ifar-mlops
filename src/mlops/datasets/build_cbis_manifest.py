@@ -106,18 +106,42 @@ def _load_dicom_info(dicom_info_csv: str, use: str) -> dict[str, str]:
     return mapping
 
 
-def _resolve_path(row: dict, dicom_map: dict[str, str] | None, images_root: str | None) -> str | None:
-    """Chemin fichier réel selon la stratégie disponible (dicom_info > arbre DICOM→jpeg)."""
+def _candidates(row: dict, dicom_map: dict[str, str] | None, images_root: str | None) -> list[str]:
+    """Chemins candidats du fichier image, du plus probable au repli.
+
+    Robuste au piège fréquent du dataset Kaggle CBIS (awsaf49) : la colonne `image_path` de
+    `dicom_info.csv` est préfixée `CBIS-DDSM/jpeg/...`, alors que `images_root` pointe déjà sur
+    `.../CBIS-DDSM` → on essaie aussi le chemin AVEC LE 1er COMPOSANT RETIRÉ (`jpeg/...`)."""
     if dicom_map is not None:
         img = dicom_map.get(row["series_uid"])
         if not img:
-            return None
-        return os.path.join(images_root, img) if images_root else img
-    # Repli : arbre DICOM préservé en jpeg (…/SeriesUID/000000.dcm → …/000000.jpg)
-    rel = row["case_path"]
-    if rel.lower().endswith(".dcm"):
-        rel = rel[:-4] + ".jpg"
-    return os.path.join(images_root, rel) if images_root else rel
+            return []
+        rels = [img]
+        parts = img.split("/")
+        if len(parts) > 1:
+            rels.append("/".join(parts[1:]))   # retire le 1er composant (préfixe dataset dupliqué)
+    else:
+        # Repli : arbre DICOM préservé en jpeg (…/SeriesUID/000000.dcm → …/000000.jpg)
+        rel = row["case_path"]
+        if rel.lower().endswith(".dcm"):
+            rel = rel[:-4] + ".jpg"
+        rels = [rel]
+        parts = rel.split("/")
+        if len(parts) > 1:
+            rels.append("/".join(parts[1:]))
+
+    if images_root:
+        cands = [os.path.join(images_root, r) for r in rels]
+        cands += rels  # au cas où image_path serait déjà absolu / relatif au cwd
+    else:
+        cands = list(rels)
+    # dédoublonnage en conservant l'ordre
+    seen, out = set(), []
+    for c in cands:
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
 
 
 def _split_by_patient(rows: list[dict], val_frac: float, seed: int) -> tuple[list[dict], list[dict]]:
@@ -181,14 +205,21 @@ def build(
     dicom_map = _load_dicom_info(dicom_info, use) if dicom_info else None
 
     resolved, unresolved, missing = [], 0, 0
+    example_missing: list[str] = []
     for r in rows:
-        path = _resolve_path(r, dicom_map, images_root)
-        if not path:
+        cands = _candidates(r, dicom_map, images_root)
+        if not cands:
             unresolved += 1
             continue
-        if verify and not Path(path).exists():
-            missing += 1
-            continue
+        if verify:
+            path = next((c for c in cands if Path(c).exists()), None)
+            if path is None:
+                missing += 1
+                if len(example_missing) < 3:
+                    example_missing.append(cands[0])
+                continue
+        else:
+            path = cands[0]
         resolved.append({"path": path, "label": r["label"], "patient_id": r["patient_id"]})
 
     train, val = _split_by_patient(resolved, val_frac, seed)
@@ -201,6 +232,7 @@ def build(
             "n_resolved": len(resolved),
             "unresolved": unresolved,
             "missing_files": missing,
+            "example_missing": example_missing,
             "train": _counts(train),
             "val": _counts(val),
             "n_patients_train": len({r["patient_id"] for r in train}),
@@ -250,6 +282,10 @@ def main(argv: list[str] | None = None) -> int:
             f"{s['n_resolved']}, non résolus={s['unresolved']}, fichiers manquants={s['missing_files']}).",
             file=sys.stderr,
         )
+        if s.get("example_missing"):
+            print("  Exemples de chemins essayés (introuvables) :", file=sys.stderr)
+            for ex in s["example_missing"]:
+                print(f"    - {ex}", file=sys.stderr)
         return 1
 
     train_path = os.path.join(args.out_dir, "train.csv")

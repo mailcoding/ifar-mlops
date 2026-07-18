@@ -1,7 +1,9 @@
 import csv
+import os
 from pathlib import Path
 
 from mlops.datasets.build_cbis_manifest import (
+    _candidates,
     _norm_label,
     _series_uid,
     _split_by_patient,
@@ -59,6 +61,49 @@ def test_split_by_patient_has_no_leak():
     assert tp and vp
     assert tp.isdisjoint(vp)                      # aucune fuite patient
     assert tp | vp == {f"P_{i:03d}" for i in range(10)}
+
+
+def test_candidates_strip_duplicated_prefix():
+    # image_path préfixé 'CBIS-DDSM/...' + images_root pointant déjà sur .../CBIS-DDSM
+    row = {"series_uid": "1.3.6.1.4.1.9590.100.1.2.42", "case_path": ""}
+    dicom_map = {"1.3.6.1.4.1.9590.100.1.2.42": "CBIS-DDSM/jpeg/uid/1-1.jpg"}
+    cands = _candidates(row, dicom_map, "/data/CBIS-DDSM")
+    # doit inclure la variante préfixe-retiré (jpeg/...) sous images_root
+    assert "/data/CBIS-DDSM/jpeg/uid/1-1.jpg" in cands
+    # et la variante brute avec le préfixe dupliqué (essayée en premier)
+    assert "/data/CBIS-DDSM/CBIS-DDSM/jpeg/uid/1-1.jpg" in cands
+
+
+def test_build_verify_resolves_via_stripped_prefix(tmp_path):
+    # Fichier réel à <root>/jpeg/uid/1-1.jpg ; dicom_info dit 'CBIS-DDSM/jpeg/uid/1-1.jpg'.
+    root = tmp_path / "CBIS-DDSM"
+    (root / "jpeg" / "uid1").mkdir(parents=True)
+    (root / "jpeg" / "uid1" / "1-1.jpg").write_bytes(b"x")
+    (root / "jpeg" / "uid2").mkdir(parents=True)
+    (root / "jpeg" / "uid2" / "1-1.jpg").write_bytes(b"x")
+
+    case = tmp_path / "calc.csv"
+    rows = [
+        {"patient_id": "P_1", "pathology": "MALIGNANT", "image view": "CC", "left or right breast": "LEFT",
+         "abnormality type": "calcification", "cropped image file path": "F_P1/std/1.3.6.1.4.1.9590.100.1.2.1/000000.dcm"},
+        {"patient_id": "P_2", "pathology": "BENIGN", "image view": "CC", "left or right breast": "LEFT",
+         "abnormality type": "calcification", "cropped image file path": "F_P2/std/1.3.6.1.4.1.9590.100.1.2.2/000000.dcm"},
+    ]
+    _write_case_csv(case, rows)
+    dinfo = tmp_path / "dicom_info.csv"
+    with open(dinfo, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["SeriesInstanceUID", "SeriesDescription", "image_path"])
+        w.writerow(["1.3.6.1.4.1.9590.100.1.2.1", "cropped images", "CBIS-DDSM/jpeg/uid1/1-1.jpg"])
+        w.writerow(["1.3.6.1.4.1.9590.100.1.2.2", "cropped images", "CBIS-DDSM/jpeg/uid2/1-1.jpg"])
+
+    rep = build([str(case)], use="cropped", dicom_info=str(dinfo), images_root=str(root),
+                val_frac=0.5, seed=1, verify=True)
+    s = rep["stats"]
+    assert s["n_resolved"] == 2 and s["missing_files"] == 0
+    # les chemins retenus pointent bien sur le fichier réel (préfixe retiré)
+    allpaths = [r["path"] for r in rep["train"] + rep["val"]]
+    assert all(os.path.exists(p) for p in allpaths)
 
 
 def test_build_end_to_end_no_verify(tmp_path):
