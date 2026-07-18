@@ -41,6 +41,7 @@ et affiche le dossier prêt. Termine par :
 ```bash
 cd <dossier-affiché-par-le-script>/ifar-mlops
 git branch -M main
+git remote set-url origin https://github.com/mailcoding/ifar-mlops.git
 git push -u origin main
 ```
 Garde-fou : le script **refuse** de tourner si des changements non committés traînent sous `mlops/`
