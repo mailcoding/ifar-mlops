@@ -52,6 +52,24 @@ HF_TOKEN=hf_xxx python -c "from mlops.registry import publish_artifact; \
 (SaMD / IEC 62304 / ISO 14971) → publication artefact HF (tag vX.Y.Z) → mise à jour du Space
 ml-service → suivi via le dashboard ops (/metrics)`. Détails : `GOVERNANCE.md`, `MODEL_CARD/TEMPLATE.md`.
 
+### 🚦 Porte de validation clinique
+**Seul** moyen de passer un artefact à `validated: true` (le produit et le déploiement lisent ce
+champ ; un artefact non validé est refusé au déploiement) :
+```bash
+python -m mlops.validation.gate --artifact artifacts/mammo-clf \
+    --validated-by "Dr X (radiologue)" \
+    --test-set "CBIS-DDSM test — indépendant, jamais vu à l'entraînement"
+# --profile detector | --target auc=0.90 (surcharge) | --dry-run (évaluer sans écrire)
+```
+Contrôles (**fail closed** : une métrique absente = échec) : métriques ≥ cibles
+(classifieur AUC ≥ 0,85 · sensibilité ≥ 0,90 · spécificité ≥ 0,75), **validateur nommé**,
+**jeu de test indépendant** déclaré, version + hash des poids. Les cibles sont **figées dans la
+décision** (critères définis *avant*, cf. SaMD §4.6) et le procès-verbal go/no-go est écrit dans
+`manifest.json` (`validation`). Code de sortie 1 si no-go → bloque une CI.
+
+> La porte vérifie que les **preuves existent et atteignent les seuils**. Elle ne remplace pas
+> l'étude clinique (rétrospective/prospective, représentativité, sous-groupes, faux négatifs).
+
 ## Extraction vers un dépôt dédié
 Ce squelette vit temporairement dans le monorepo produit. **Runbook complet : [`INFRA_SETUP.md`](INFRA_SETUP.md)**
 (création du repo GitHub, extraction avec historique, repos HF privés, CI, 1ʳᵉ publication). En bref :
