@@ -15,6 +15,7 @@ Miroir des scripts `src/mlops/train/` pour l'exécution sur GPU gratuit (Google 
   `mlops.datasets.build_yolo_seg_dataset`) → **baseline du modèle déployé** → entraînement **1280px /
   `yolov8s-seg`** → évaluation par classe (masse/calcification) + seuil orienté recall → comparaison →
   publication. Objectif : relever le recall (cf. audit `ifar/docs/AUDIT_MODELES_IA.md`).
+  **Fusion VinDr-Mammo optionnelle** (cellule 5b, `VINDR_ANNOTATIONS`) pour la généralisation FFDM.
 
 - Importer ici les **notebooks d'entraînement existants** (qui ont produit
   `cbis_ddsm_efficientnet_final.pth`, `yolov8_*.pt`), puis les factoriser dans `src/mlops/`.

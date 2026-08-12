@@ -38,8 +38,31 @@ dans `configs/mammo_classifier.yaml`. Options :
 - `--no-verify` pour planifier à sec sans vérifier l'existence des fichiers.
 
 ### Détecteur mammo (YOLO)
-Dataset Ultralytics : images + labels `.txt` + un `data.yaml` (train/val + classes). Chemin du
-`data.yaml` renseigné dans `configs/mammo_detector.yaml`.
+Dataset Ultralytics : images + labels `.txt` + un `data.yaml` (train/val + classes `0=mass`,
+`1=calcification`). Chemin du `data.yaml` renseigné dans `configs/mammo_detector.yaml`.
+
+**Génération depuis CBIS** (masques ROI → polygones YOLO-seg, split officiel par patient, image liée
+en pleine résolution) :
+```bash
+python -m mlops.datasets.build_yolo_seg_dataset \
+    --train-csv mass_case_description_train_set.csv --train-csv calc_case_description_train_set.csv \
+    --val-csv   mass_case_description_test_set.csv  --val-csv   calc_case_description_test_set.csv  \
+    --images-root /data/cbis --out-dir /data/ifar/yolo_seg
+```
+
+**Généralisation — fusion VinDr-Mammo** (FFDM moderne, findings en bounding boxes). Se déverse dans
+le **même** `--out-dir` (fichiers préfixés `vindr_`, `data.yaml` existant préservé) :
+```bash
+python -m mlops.datasets.build_vindr_yolo_dataset \
+    --annotations finding_annotations.csv --images-root /data/vindr/images \
+    --out-dir /data/ifar/yolo_seg --mode seg
+```
+- `--mode seg` : box → polygone rectangle (compatible dataset CBIS-seg) ; `--mode detect` : box `xywh`.
+- Classes VinDr mappées `Mass→mass`, `*Calcification→calcification` (autres findings ignorés) ;
+  split officiel VinDr (`training`/`test`) disjoint par étude ; images « No Finding » → **négatifs**
+  (labels vides) pour réduire les faux positifs. `--dry-run` planifie sans écrire.
+- ⚠️ VinDr n'a **pas** de vérité histologique (BI-RADS seulement) → il sert le **détecteur**
+  (localisation/généralisation), pas le classifieur bénin/malin.
 
 ### Histologie (Nottingham)
 Lames annotées avec scores SBR (tubule/pléomorphisme/mitose) — dataset à constituer (pseudonymisé).
