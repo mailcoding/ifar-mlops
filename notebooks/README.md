@@ -10,6 +10,11 @@ Miroir des scripts `src/mlops/train/` pour l'exécution sur GPU gratuit (Google 
 - **`train_mammo_classifier_drive.ipynb`** — **même pipeline**, mais le dataset est lu depuis **Google
   Drive monté** (aucun repo HF dataset requis ; le token HF `write` ne sert qu'à la publication finale).
   Adapter `DRIVE_DATA_DIR` + les chemins des CSV à ton arborescence Drive.
+- **`train_mammo_detector.ipynb`** — pipeline de bout en bout du **détecteur** (YOLOv8-seg) :
+  CBIS (HF privé ou Drive) → dataset YOLO-seg (masques ROI → polygones, split officiel par patient,
+  `mlops.datasets.build_yolo_seg_dataset`) → **baseline du modèle déployé** → entraînement **1280px /
+  `yolov8s-seg`** → évaluation par classe (masse/calcification) + seuil orienté recall → comparaison →
+  publication. Objectif : relever le recall (cf. audit `ifar/docs/AUDIT_MODELES_IA.md`).
 
 - Importer ici les **notebooks d'entraînement existants** (qui ont produit
   `cbis_ddsm_efficientnet_final.pth`, `yolov8_*.pt`), puis les factoriser dans `src/mlops/`.
