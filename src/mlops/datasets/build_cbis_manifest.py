@@ -29,8 +29,8 @@ import csv
 import os
 import random
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 # Colonnes de chemin selon le type d'image à classer.
 PATH_COLUMN = {
@@ -196,16 +196,27 @@ def build(
     val_frac: float = 0.2,
     seed: int = 42,
     verify: bool = True,
+    flag_masks: bool = False,
 ) -> dict:
-    """Construit les listes train/val résolues. Retourne un rapport (listes + stats)."""
+    """Construit les listes train/val résolues. Retourne un rapport (listes + stats).
+
+    flag_masks (verify=True requis) : ouvre chaque image résolue et ÉCARTE celles qui
+    ressemblent à des masques ROI binaires (piège awsaf49 : « cropped image file path »
+    pointant vers un masque plutôt que la ROI). Comptées dans stats['suspected_masks'].
+    Nécessite PIL (extra [train]) ; sans verify, aucun fichier n'est ouvert → sans effet."""
     rows: list[dict] = []
     for c in case_csvs:
         rows.extend(_read_rows(c, use))
 
     dicom_map = _load_dicom_info(dicom_info, use) if dicom_info else None
 
-    resolved, unresolved, missing = [], 0, 0
+    is_mask = None
+    if flag_masks and verify:
+        from mlops.datasets.image_qa import is_probable_mask as is_mask  # import paresseux (PIL)
+
+    resolved, unresolved, missing, suspected = [], 0, 0, 0
     example_missing: list[str] = []
+    example_masks: list[str] = []
     for r in rows:
         cands = _candidates(r, dicom_map, images_root)
         if not cands:
@@ -217,6 +228,11 @@ def build(
                 missing += 1
                 if len(example_missing) < 3:
                     example_missing.append(cands[0])
+                continue
+            if is_mask is not None and is_mask(path):
+                suspected += 1
+                if len(example_masks) < 3:
+                    example_masks.append(path)
                 continue
         else:
             path = cands[0]
@@ -233,6 +249,8 @@ def build(
             "unresolved": unresolved,
             "missing_files": missing,
             "example_missing": example_missing,
+            "suspected_masks": suspected,
+            "example_masks": example_masks,
             "train": _counts(train),
             "val": _counts(val),
             "n_patients_train": len({r["patient_id"] for r in train}),
@@ -265,11 +283,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out-dir", default="data", help="Dossier de sortie des manifestes (défaut data/).")
     p.add_argument("--no-verify", action="store_true",
                    help="Ne pas vérifier l'existence des fichiers (planification à sec).")
+    p.add_argument("--flag-masks", action="store_true",
+                   help="Écarter les images ressemblant à des masques ROI binaires (piège awsaf49). "
+                        "Nécessite PIL et --verify (défaut).")
     args = p.parse_args(argv)
 
     report = build(
         args.case_csvs, use=args.use, dicom_info=args.dicom_info, images_root=args.images_root,
         val_frac=args.val_frac, seed=args.seed, verify=not args.no_verify,
+        flag_masks=args.flag_masks,
     )
     s = report["stats"]
 
@@ -298,6 +320,10 @@ def main(argv: list[str] | None = None) -> int:
           f"(non résolues {s['unresolved']}, fichiers manquants {s['missing_files']})")
     print(f"  train : {s['train']} — {s['n_patients_train']} patient(s)")
     print(f"  val   : {s['val']} — {s['n_patients_val']} patient(s)")
+    if args.flag_masks:
+        print(f"  masques suspects écartés : {s['suspected_masks']}")
+        for ex in s.get("example_masks", []):
+            print(f"    - {ex}")
     print(f"  fuite patient : {'AUCUNE' if not s['patient_leak'] else s['patient_leak']}")
     print(f"  class_weights suggérés (config) : {s['suggested_class_weights']}  # [bénin, malin]")
     return 0

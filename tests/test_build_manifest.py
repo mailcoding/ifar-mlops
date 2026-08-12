@@ -2,6 +2,8 @@ import csv
 import os
 from pathlib import Path
 
+import pytest
+
 from mlops.datasets.build_cbis_manifest import (
     _candidates,
     _norm_label,
@@ -104,6 +106,44 @@ def test_build_verify_resolves_via_stripped_prefix(tmp_path):
     # les chemins retenus pointent bien sur le fichier réel (préfixe retiré)
     allpaths = [r["path"] for r in rep["train"] + rep["val"]]
     assert all(os.path.exists(p) for p in allpaths)
+
+
+def test_build_flag_masks_excludes_binary_masks(tmp_path):
+    # Piège awsaf49 : un « cropped image file path » pointe vers un MASQUE binaire → à écarter.
+    Image = pytest.importorskip("PIL.Image")
+    import numpy as np
+
+    root = tmp_path / "CBIS-DDSM"
+    (root / "jpeg" / "uidM").mkdir(parents=True)
+    (root / "jpeg" / "uidR").mkdir(parents=True)
+    mask = np.zeros((48, 48), dtype=np.uint8)
+    mask[12:36, 12:36] = 255                                   # masque binaire
+    Image.fromarray(mask, "L").save(root / "jpeg" / "uidM" / "1-1.png")
+    roi = np.random.default_rng(0).integers(40, 210, size=(48, 48), dtype=np.uint8)
+    Image.fromarray(roi, "L").save(root / "jpeg" / "uidR" / "1-1.png")  # vraie ROI
+
+    case = tmp_path / "calc.csv"
+    rows = [
+        {"patient_id": "P_M", "pathology": "MALIGNANT", "image view": "CC", "left or right breast": "LEFT",
+         "abnormality type": "calcification", "cropped image file path": "F/x/1.3.6.1.4.1.9590.100.1.2.1/000000.dcm"},
+        {"patient_id": "P_R", "pathology": "BENIGN", "image view": "CC", "left or right breast": "LEFT",
+         "abnormality type": "calcification", "cropped image file path": "F/x/1.3.6.1.4.1.9590.100.1.2.2/000000.dcm"},
+    ]
+    _write_case_csv(case, rows)
+    dinfo = tmp_path / "dicom_info.csv"
+    with open(dinfo, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["SeriesInstanceUID", "SeriesDescription", "image_path"])
+        w.writerow(["1.3.6.1.4.1.9590.100.1.2.1", "cropped images", "CBIS-DDSM/jpeg/uidM/1-1.png"])
+        w.writerow(["1.3.6.1.4.1.9590.100.1.2.2", "cropped images", "CBIS-DDSM/jpeg/uidR/1-1.png"])
+
+    rep = build([str(case)], use="cropped", dicom_info=str(dinfo), images_root=str(root),
+                val_frac=0.5, seed=1, verify=True, flag_masks=True)
+    s = rep["stats"]
+    assert s["suspected_masks"] == 1                            # le masque est détecté
+    assert s["n_resolved"] == 1                                 # …et écarté des résolus
+    kept = [r["path"] for r in rep["train"] + rep["val"]]
+    assert len(kept) == 1 and kept[0].endswith(os.path.join("uidR", "1-1.png"))  # seule la ROI reste
 
 
 def test_build_end_to_end_no_verify(tmp_path):
