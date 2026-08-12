@@ -1,15 +1,40 @@
 # Config — détecteur/segmenteur de lésions (YOLOv8-seg, Ultralytics)
+# Révisée suite à l'audit (ifar/docs/AUDIT_MODELES_IA.md) : le détecteur déployé (nano @ 640px)
+# est à mAP50 ≈ 0,10 et rate la plupart des lésions, en particulier les microcalcifications
+# (effacées à 640px). Leviers activés ici : résolution ↑ (1280), backbone ↑ (s-seg), seuil RECALL.
 
 model:
-  base: yolov8n-seg.pt        # segmentation (masques). yolov8n.pt = détection seule (mode dégradé)
+  base: yolov8s-seg.pt        # 's' > 'n' pour des lésions subtiles (nano = plus léger/rapide, moins précis)
 
 data:
-  yaml: /data/ifar/yolo/data.yaml   # data.yaml Ultralytics (train/val + noms de classes)
+  # data.yaml Ultralytics (train/val + classes: 0=mass, 1=calcification). Généré depuis CBIS
+  # (masques ROI → polygones), split par patient — cf. notebook de segmentation.
+  yaml: /data/ifar/yolo_seg/data.yaml
 
 train:
-  imgsz: 640
-  epochs: 100
-  batch: 16
+  imgsz: 1280                 # ↑ vs 640 : décisif pour les microcalcifications (mammo ~3000×5000)
+  epochs: 120
+  batch: 8                    # 1280px → plus de VRAM ; réduire encore si OOM (ex. 4)
+  patience: 25                # early stopping (epochs sans gain de fitness)
+  cos_lr: true                # recuit cosinus du LR
+  device: null                # null = auto (GPU si dispo)
+  # Augmentations adaptées à la mammographie (niveaux de gris → HSV quasi nul)
+  augment:
+    fliplr: 0.5
+    flipud: 0.3
+    degrees: 10
+    translate: 0.1
+    scale: 0.2
+    hsv_h: 0.0
+    hsv_s: 0.1
+    hsv_v: 0.2
+    mosaic: 0.5
+
+eval:
+  imgsz: 1280
+  target_recall: 0.90         # clinique : privilégier le RECALL (ne pas rater de lésion)
+  conf: 0.001                 # conf basse à l'éval → courbe PR complète (le seuil de prod se règle ensuite)
+  iou: 0.6
 
 export:
   out_dir: artifacts/mammo-det
