@@ -70,6 +70,27 @@ décision** (critères définis *avant*, cf. SaMD §4.6) et le procès-verbal go
 > La porte vérifie que les **preuves existent et atteignent les seuils**. Elle ne remplace pas
 > l'étude clinique (rétrospective/prospective, représentativité, sous-groupes, faux négatifs).
 
+### 🔁 Voie « amélioration » (déploiement sans validation absolue)
+Le modèle **en production n'a lui non plus jamais passé de porte**. Refuser un candidat *meilleur*
+au seul motif qu'il n'atteint pas les cibles absolues revient à **préserver le pire modèle**. Cette
+voie répond à une question différente — *« est-ce mieux que ce qui tourne aujourd'hui ? »* :
+```bash
+python -m mlops.validation.improvement --artifact artifacts/mammo-clf \
+    --incumbent-metrics '{"auc":0.77,"sensitivity":0.63,"specificity":0.74}' \
+    --approved-by "Dr X" --rationale "sensibilité +0,20 ; spécificité −0,04 assumée" \
+    --review-by 2026-11-15 --same-test-set
+```
+Elle **n'est pas** une porte dérobée : `validated` n'est jamais modifié (seule la porte clinique le
+peut), la porte clinique doit avoir été **exécutée** au préalable, la comparaison exige une
+**attestation de jeu de test identique** (cf. `mlops.eval.classifier_eval` — comparer deux modèles
+mesurés sur des splits différents ne prouve rien), et la décision est **nominative, justifiée et
+bornée par une date de revue**. Règle par défaut : la **sensibilité doit progresser**, avec une
+régression tolérée bornée ailleurs (spécificité ≤ 0,05, AUC 0).
+
+Côté produit, le déploiement d'un tel artefact exige un **opt-in explicite**
+(`--accept-improvement` / variable `ML_ACCEPT_IMPROVEMENT`), s'affiche en avertissement, et
+`/health` expose `deployment.basis` pour que la carte ops montre « non validé cliniquement ».
+
 ## Extraction vers un dépôt dédié
 Ce squelette vit temporairement dans le monorepo produit. **Runbook complet : [`INFRA_SETUP.md`](INFRA_SETUP.md)**
 (création du repo GitHub, extraction avec historique, repos HF privés, CI, 1ʳᵉ publication). En bref :
