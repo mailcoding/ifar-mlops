@@ -5,7 +5,7 @@
 # faux négatifs) : on rapporte sensibilité/spécificité au seuil choisi + l'AUC.
 # ─────────────────────────────────────────────
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -51,7 +51,7 @@ def binary_metrics(y_true: Sequence[int], y_score: Sequence[float], threshold: f
 
     return {
         "threshold": float(threshold),
-        "n": int(len(y_true)),
+        "n": len(y_true),
         "auc": round(roc_auc(y_true, y_score), 4),
         "sensitivity": round(_safe(tp, tp + fn), 4),   # rappel / TPR
         "specificity": round(_safe(tn, tn + fp), 4),   # TNR

@@ -1,3 +1,3 @@
-from .efficientnet import EfficientNetClassifier, NUM_CLASSES
+from .efficientnet import NUM_CLASSES, EfficientNetClassifier
 
-__all__ = ["EfficientNetClassifier", "NUM_CLASSES"]
+__all__ = ["NUM_CLASSES", "EfficientNetClassifier"]

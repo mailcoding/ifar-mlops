@@ -10,7 +10,7 @@
 # ─────────────────────────────────────────────
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 NUM_CLASSES = 2  # 0 = BENIGN, 1 = MALIGNANT
 MALIGNANCY_THRESHOLD = 0.50

@@ -8,13 +8,31 @@ data:
   val_manifest:   /data/ifar/cbis/val.csv
 
 train:
-  epochs: 40                 # transfert learning : converge en général < 40 (early stopping actif)
+  epochs: 60                 # ↑ (le fine-tuning progressif converge plus lentement ; early stopping actif)
   batch_size: 32
-  lr: 0.0003
+  lr: 0.0003                 # LR de la PHASE GELÉE (tête seule)
   weight_decay: 0.0001
   num_workers: 4
   scheduler: cosine          # cosine | none — recuit du LR sur les epochs
-  patience: 8                # early stopping : nb d'epochs sans gain d'AUC val avant arrêt
+  patience: 12               # early stopping : nb d'epochs sans gain d'AUC val avant arrêt
+  label_smoothing: 0.05      # régularisation légère (0.0 = désactivé)
+
+  # Fine-tuning progressif : entraîner d'emblée tout le réseau dégrade les features ImageNet
+  # sur un petit dataset. Tête seule d'abord, puis dégel du backbone à LR réduit.
+  finetune:
+    freeze_epochs: 3         # 0 = désactivé (tout entraîné dès le départ, ancien comportement)
+    unfreeze_lr: 0.00005
+
+  # Augmentation d'ENTRAÎNEMENT uniquement (la val garde le pipeline d'inférence).
+  # random_resized_crop = jitter de cadrage : imite la marge variable des bbox YOLO en production.
+  augment:
+    random_resized_crop: [0.75, 1.0]
+    hflip: 0.5
+    vflip: 0.2
+    rotation: 15
+    translate: 0.05
+    brightness: 0.2
+    contrast: 0.2
   # Déséquilibre bénin/malin : REPORTER ici les class_weights [bénin, malin] suggérés en fin de
   # build_cbis_manifest (poids inverse-fréquence). Ex. : [1.0, 1.6]. null = pas de pondération.
   class_weights: null
