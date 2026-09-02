@@ -1,0 +1,24 @@
+{
+  "model": "ifar-mammo-classifier",
+  "version": "unpublished-cbis-ddsm-d4177e86",
+  "framework": "timm/efficientnet_b0",
+  "input": {
+    "size": 224,
+    "norm": "imagenet",
+    "channels": 3
+  },
+  "trained_on": {
+    "dataset": "CBIS-DDSM",
+    "split": "inconnu",
+    "dataset_sha256": ""
+  },
+  "metrics": {},
+  "threshold": 0.4,
+  "weights_file": "cbis_ddsm_efficientnet_final.pth",
+  "weights_sha256": "d4177e86ebc6eb1c408533468067c77d930a4d89ffadf4e6662fc0086b22e78a",
+  "git_commit": "",
+  "validated": false,
+  "validated_by": "",
+  "date": "2026-09-02T15:43:41.376849+00:00",
+  "notes": "Manifeste RÉTROSPECTIF. Ces poids ont été déposés à la main sur le Space Mailcoding/ifar_ml, sans passer par `mlops export_classifier` : ni tag sémantique, ni métriques, ni porte de validation clinique, contrairement à ce qu'exige GOVERNANCE.md. Ce manifeste ne régularise rien — il rend l'écart visible et l'artefact identifiable.\n\nÉVALUATION : aucune évaluation reproductible n'est consignée dans ce dépôt pour ces poids. `metrics` est donc vide, délibérément. Des chiffres d'environ 62 % d'exactitude en validation et AUC ~0,6 ont été RAPPORTÉS à l'énoncé du projet, sans jeu de test identifié ni date ; ils sont mentionnés ici pour mémoire et ne doivent être traités ni comme une mesure, ni par `validation/gate.py`. Cibles à atteindre : AUC >= 0,85, sensibilité >= 0,90.\n\nSEUIL : 0,40, relevé dans ml-service/app/classification.py (MALIGNANCY_THRESHOLD). Abaissé depuis 0,50 sans mesure d'accompagnement — arbitrage sensibilité/spécificité en attente du comité clinique.\n\nARTEFACT COMPAGNON (segmentation, non couvert par ce manifeste car `load_model_manifest` n'en expose qu'un) : models/yolov8_seg.pt, 6782516 octets, sha256 2b54df6c6fdb50f96a03d5fe98b1c1cb747fd0abb71723aa3eb7013f00be5e03. /health le rapporte sous `loaded_weights.segmentation`.\n\nORDRE DE CHARGEMENT : le ml-service essaie efficientnet_b0.pth, puis cbis_ddsm_efficientnet_final.pth, puis best_model.pth. Le premier est absent du Space ; c'est donc bien le deuxième qui sert, ce que /health confirme."
+}

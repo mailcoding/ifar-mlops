@@ -33,10 +33,32 @@ def sha256_file(path: str | Path) -> str:
     return h.hexdigest()
 
 
+def _resolve_sha256(weights_path: Path | None, provided: str) -> str:
+    """
+    Empreinte des poids : calculée si le fichier est là, fournie sinon.
+
+    Le cas « fournie » sert aux artefacts DÉJÀ déployés, dont les poids vivent sur le Hub et
+    non sur ce disque — l'empreinte se relève alors sur le pointeur LFS.
+
+    Si les deux sont disponibles et diffèrent, on lève : un manifeste qui annonce une empreinte
+    autre que celle du fichier qu'il décrit ment sur l'artefact, et c'est précisément ce que
+    l'empreinte est censée rendre impossible.
+    """
+    provided = (provided or "").strip().lower()
+    computed = sha256_file(weights_path) if weights_path and weights_path.exists() else ""
+    if computed and provided and computed != provided:
+        raise ValueError(
+            f"Empreinte incohérente pour {weights_path.name} : "
+            f"fichier {computed}, annoncée {provided}"
+        )
+    return computed or provided
+
+
 def write_manifest(out_dir: str | Path, *, model: str, version: str, framework: str,
                    input_spec: dict, trained_on: dict, metrics: dict,
                    threshold: float, git_commit: str = "", validated_by: str = "",
-                   weights_filename: str = "", notes: str = "") -> Path:
+                   weights_filename: str = "", weights_sha256: str = "",
+                   notes: str = "") -> Path:
     """Écrit `manifest.json` (métadonnées de version, cf. MLOPS_ARCHITECTURE.md §4)."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -50,7 +72,7 @@ def write_manifest(out_dir: str | Path, *, model: str, version: str, framework: 
         "metrics": metrics,
         "threshold": threshold,
         "weights_file": weights_filename,
-        "weights_sha256": sha256_file(weights_path) if weights_path and weights_path.exists() else "",
+        "weights_sha256": _resolve_sha256(weights_path, weights_sha256),
         "git_commit": git_commit,
         "validated": bool(validated_by),
         "validated_by": validated_by,
